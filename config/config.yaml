@@ -1,0 +1,44 @@
+# config/config.yaml
+
+# S3 Settings
+s3:
+  bucket: "s3://your-bucket"  # Replace with your S3 bucket name
+  dataset_path: "dataset/"    # Root path for data in S3
+  outputs_path: "outputs/"    # Root path for results in S3
+  subdirs:
+    frames: "frames/"         # Images directory
+    audio: "audio/"           # Audio directory
+    models: "models/"         # Saved models
+    plots: "plots/"           # Visualization plots
+    logs: "logs/"             # Training logs
+
+# Hyperparameters
+training:
+  batch_size: 16              # Number of samples per batch (adjustable)
+  learning_rate: 0.001        # How fast the model learns
+  epochs: 10                  # Number of training rounds
+  fusion_types:               # Which fusion strategies to use
+    - "early"
+    - "mid"
+    - "late"
+  dropout_rate: 0.3           # Prevent overfitting (30% dropout)
+
+# Model Settings
+models:
+  audio:
+    input_size: [128, 128]    # Spectrogram size (height, width)
+    output_dim: 128           # Feature vector size
+  image:
+    input_size: [224, 224]    # Image size (height, width)
+    output_dim: 128           # Feature vector size
+  emotions:
+    num_classes: 7            # Emotions: happy, sad, angry, etc.
+
+# Memory Management
+memory:
+  max_usage_percent: 80       # Max memory usage (80%)
+  target_usage_percent: 70    # Target usage for batch sizing (70%)
+
+# Miscellaneous
+logging:
+  log_frequency: 10           # Log every 10 batches

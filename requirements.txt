@@ -1,0 +1,9 @@
+pyyaml
+boto3
+librosa
+Pillow
+torch
+torchvision
+psutil
+matplotlib
+scikit-learn

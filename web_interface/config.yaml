@@ -1,0 +1,20 @@
+# web_interface/config.yaml
+
+# S3 Settings
+s3:
+  users:
+    data: "users/data/"      # Where user-uploaded videos go
+    logs: "users/logs/"      # Where processing logs go
+    results: "users/results/" # Where CSV results go
+    models: "users/models/"   # Where pretrained models are stored
+
+# Model Settings
+models:
+  audio:
+    input_size: [128, 128]   # Spectrogram size (height, width)
+  image:
+    input_size: [224, 224]   # Image size (height, width)
+  fusion_types:
+    - "early"
+    - "mid"
+    - "late"

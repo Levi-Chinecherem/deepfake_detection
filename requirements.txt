@@ -1,4 +1,3 @@
-# requirements.txt
 pyyaml
 boto3
 librosa
@@ -11,3 +10,6 @@ matplotlib
 scikit-learn
 ffmpeg-python
 pandas
+django
+gunicorn
+

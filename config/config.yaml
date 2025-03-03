@@ -2,17 +2,21 @@
 
 # S3 Settings
 s3:
-  bucket: "s3://your-bucket"  # Replace with your S3 bucket name
-  dataset_path: "dataset/"    # Root path for training data in S3
-  test_data_path: "test_data/" # Root path for video test data in S3
-  outputs_path: "outputs/"    # Root path for results in S3
+  bucket: "s3://bale"
+  dataset_path: "dataset/"
+  test_data_path: "test_data/"
+  outputs_path: "outputs/"
   subdirs:
-    frames: "frames/"         # Images directory (training data)
-    audio: "audio/"           # Audio directory (training data)
-    models: "models/"         # Saved models
-    plots: "plots/"           # Visualization plots
-    logs: "logs/"             # Training logs
-    results: "results/"       # Test results (CSV files)
+    frames: "frames/"
+    audio: "audio/"
+    models: "models/"
+    plots: "plots/"
+    logs: "logs/"
+    results: "results/"
+  users:
+    data: "users/data/"
+    logs: "users/logs/"
+    results: "users/results/"
 
 # Hyperparameters
 training:

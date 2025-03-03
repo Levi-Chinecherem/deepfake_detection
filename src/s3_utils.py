@@ -1,19 +1,33 @@
 # src/s3_utils.py
-
 import boto3
 from botocore.exceptions import ClientError
 import io
 import os
+from dotenv import load_dotenv  # Added for .env loading
+
+# Load environment variables from .env in the root directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+# S3 credentials from .env
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_REGION = os.getenv('AWS_REGION')
 
 def get_s3_client():
     """
-    Initialize and return an S3 client.
+    Initialize and return an S3 client using credentials from .env.
     
     Returns:
         boto3.client: S3 client object.
     """
     try:
-        return boto3.client('s3')
+        return boto3.client(
+            's3',
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name=AWS_REGION
+        )
     except Exception as e:
         raise Exception(f"Failed to initialize S3 client: {e}")
 
@@ -140,12 +154,14 @@ if __name__ == "__main__":
     with open("../config/config.yaml", 'r') as f:
         config = yaml.safe_load(f)
     
+    # Get bucket from .env instead of config
+    BUCKET = os.getenv('S3_BUCKET')
+    
     # Test creating output folders
-    bucket = config['s3']['bucket']
     for subdir in config['s3']['subdirs'].values():
-        create_s3_folder(f"{bucket}/{config['s3']['outputs_path']}{subdir}")
+        create_s3_folder(f"{BUCKET}/{config['s3']['outputs_path']}{subdir}")
     
     # Test streaming a sample file (replace with a valid path)
-    sample_path = f"{bucket}/dataset/frames/train/real/sample.jpg"
+    sample_path = f"{BUCKET}/dataset/frames/train/real/sample.jpg"
     stream = stream_from_s3(sample_path)
     print(f"Streamed {sample_path}, size: {stream.getbuffer().nbytes} bytes")

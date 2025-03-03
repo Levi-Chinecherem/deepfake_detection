@@ -1,234 +1,212 @@
 # Multimodal Deepfake Detection System
 
-Welcome to the Multimodal Deepfake Detection System! This project builds a machine learning system to detect deepfakes—videos or media that have been manipulated to look or sound real but aren’t. Our system uses two types of data: **images** (like snapshots of faces) and **audio** (like voice recordings) to figure out if something is real or fake. It does this by checking if the emotions in the face (like a smile) match the emotions in the voice (like a happy tone). If they don’t match, it’s more likely a fake!
+**A PhD Research Project by Bale Dennis**  
+**Developed by Levi Chinecherem ([GitHub: Levi-Chinecherem](https://github.com/Levi-Chinecherem))**  
 
-We’re building this from scratch, training it on data stored in **Amazon S3** (a cloud storage service), and running it on **AWS EC2** (a cloud computer). Everything—data, results, and pictures—stays in the cloud, and we’ll make sure it doesn’t use too much memory so the computer doesn’t crash. Let’s break it down step-by-step so you can understand exactly what’s happening.
-
----
-
-## What Are We Building?
-Imagine you’re watching a video of someone talking. How can you tell if it’s real or a clever fake? Our system looks at two clues:
-1. **Images**: Pictures of the person’s face (one at a time).
-2. **Audio**: The sound of their voice.
-
-It checks if the emotions in the face (like looking angry) match the emotions in the voice (like sounding angry). Real videos usually have matching emotions, but fakes often don’t because it’s hard to fake both perfectly. The system learns this by studying lots of examples and then predicts: **Real** or **Fake**.
-
-We use three ways to combine the clues (**fusion**):
-- **Early Fusion**: Mix the image and audio data right at the start and analyze them together.
-- **Mid Fusion**: Look at the image and audio separately first, then mix them halfway through.
-- **Late Fusion**: Look at them completely separately and only mix the final guesses.
-
-Everything runs on a cloud computer (EC2), and all the data lives in S3 buckets (like cloud folders). We don’t download anything to a local computer—we stream it straight from the cloud!
+Welcome to the Multimodal Deepfake Detection System, a cutting-edge research initiative developed as part of Bale Dennis’s PhD dissertation. This system addresses the escalating challenge of deepfake detection by leveraging emotional consistency across audio and visual modalities, offering a novel contribution to digital forensics and machine learning. Built from the ground up and deployed on AWS infrastructure, this project combines academic rigor with practical application, making it a valuable tool for researchers, practitioners, and PhD evaluators alike.
 
 ---
 
-## Why This System?
-Deepfakes are becoming more common, and they can trick people—like making a fake video of a politician saying something they didn’t. Our system helps spot these fakes by focusing on emotional consistency, which is hard for deepfake creators to get right. It’s lightweight (doesn’t need a super powerful computer) and saves everything to the cloud so you don’t lose any details.
+## Research Objective
+Deepfakes—synthetic media that convincingly mimic real content—threaten trust in digital communications. This PhD project, spearheaded by Bale Dennis, proposes a multimodal approach to detect deepfakes by analyzing the alignment of emotional cues between audio (e.g., voice intonation) and visuals (e.g., facial expressions). By integrating three distinct fusion strategies—Early, Mid, and Late Fusion—this system provides a robust framework to identify inconsistencies that betray synthetic manipulation, advancing the field of multimedia authentication.
 
 ---
 
-## How Does It Work?
-Here’s the big picture of how we build and run this system:
-
-### 1. Where’s the Data?
-Our data is stored in **Amazon S3**, a cloud storage service. It’s split into two parts:
-- **Images**: Pictures of faces, stored in `s3://your-bucket/dataset/frames/`.
-- **Audio**: Voice recordings, stored in `s3://your-bucket/dataset/audio/`.
-
-Each part has three folders:
-- `train/`: Data to teach the system.
-- `test/`: Data to check how well it learned.
-- `validate/`: Extra data to fine-tune it.
-
-Inside those, we have:
-- `real/`: Real images or audio.
-- `fake/`: Fake (deepfake) images or audio.
-
-The images and audio don’t come from the same videos (they’re separate sources), but that’s okay—we’ll teach the system to spot patterns anyway.
-
-### 2. Getting the Data Ready
-We don’t download files to the computer. Instead, we **stream** them from S3 into memory (like watching a video online without saving it). Here’s what we do:
-- **Images**: Turn pictures into a standard size (224x224 pixels) and adjust their colors so they’re easier to analyze.
-- **Audio**: Turn voice recordings into pictures of sound (called spectrograms, sized 128x128) so the computer can “see” the voice patterns.
-
-### 3. Building the Brain (Models)
-The system has three parts, like a detective team:
-- **Image Team**: Looks at faces using a tool called ResNet18 (a smart picture analyzer) to guess emotions (happy, sad, angry, etc.).
-- **Audio Team**: Listens to voices using a mix of tools (CNN and LSTM) to guess emotions from the sound.
-- **Fusion Team**: Combines the clues in three ways (early, mid, late) to decide: Real or Fake?
-
-The system learns by comparing emotions. If the face looks happy but the voice sounds sad, it’s suspicious!
-
-### 4. Mixing the Clues (Fusion)
-- **Early Fusion**: Mix the image and audio data right away and let one big brain figure it out.
-- **Mid Fusion**: Let the image and audio teams work separately first, then mix their findings in the middle.
-- **Late Fusion**: Let each team make a guess, then vote on the final answer.
-
-### 5. Checking Emotions
-We add mini-checks to see what emotions the image and audio show. If they don’t match (like a smiling face with a crying voice), the system flags it as a fake.
-
-### 6. Saving Everything
-We save **everything** to S3 so you don’t miss a thing:
-- **Models**: The trained brains (saved as `.pth` files).
-- **Plots**: Pictures showing how well it’s working (saved as `.png`).
-- **Logs**: Notes about what happened during training (saved as `.txt` or `.csv`).
-- **Intermediate Results**: Halfway findings, like emotion guesses or memory usage.
-
-These go into `s3://your-bucket/outputs/`, which we create automatically if it’s not there.
-
-### 7. Running It
-We run this on **AWS EC2**, a cloud computer you control through a terminal (like a text-only interface). You type a command like `python src/train.py --config config.yaml`, and it starts working. No downloading—just streaming and saving to S3.
+## Key Innovations
+- **Emotional Consistency Analysis**: Detects deepfakes by validating congruence between audio and visual emotional signals (e.g., a happy tone matching a smile).
+- **Multimodal Fusion**: Implements three fusion models:
+  - **Early Fusion**: Merges raw audio and visual data at the input stage.
+  - **Mid Fusion**: Combines intermediate features for enhanced feature interaction.
+  - **Late Fusion**: Processes modalities independently, aggregating predictions for balanced accuracy.
+- **Cloud Scalability**: Operates on AWS EC2 with S3 integration, ensuring efficient data handling and scalability.
+- **Resource Optimization**: Maintains memory usage below 80% with dynamic batch sizing, suitable for academic and real-world deployment.
+- **Practical Testing**: Processes raw video files, producing CSV outputs for statistical analysis and comparison.
 
 ---
 
-## Folder Structure
-Here’s how the project is organized:
-
-### On Your Computer (Code Only)
+## Repository Structure
 ```
 deepfake_detection/
-├── src/                    # All the code lives here
-│   ├── s3_utils.py        # Tools to talk to S3 (stream data, save files)
-│   ├── preprocess.py      # Prepares images and audio in memory
-│   ├── models.py          # Defines the brains (image, audio, fusion)
-│   ├── train.py           # Runs the training
-│   ├── evaluate.py        # Checks how good the system is
-│   └── utils.py           # Extra helpers (memory checks, plotting)
-├── config/                # Settings
-│   ├── config.yaml        # S3 bucket name, settings like batch size
-├── requirements.txt       # List of tools we need (like Python libraries)
-└── README.md              # This file!
-```
-
-### In S3 (Data and Results)
-```
-s3://your-bucket/
-├── dataset/               # Where the data lives
-│   ├── frames/           # Images
-│   │   ├── train/
-│   │   │   ├── real/
-│   │   │   └── fake/
-│   │   ├── test/
-│   │   │   ├── real/
-│   │   │   └── fake/
-│   │   └── validate/
-│   │       ├── real/
-│   │       └── fake/
-│   ├── audio/            # Audio files
-│   │   ├── train/
-│   │   │   ├── real/
-│   │   │   └── fake/
-│   │   ├── test/
-│   │   │   ├── real/
-│   │   │   └── fake/
-│   │   └── validate/
-│   │       ├── real/
-│   │       └── fake/
-├── outputs/              # Where results go (created automatically)
-│   ├── models/          # Saved brains (.pth files)
-│   ├── plots/           # Pictures of results (.png files)
-│   ├── logs/            # Notes about training (.txt/.csv files)
+├── config/
+│   ├── config.yaml       # Configuration file (S3 paths, hyperparameters)
+├── src/
+│   ├── test_config.py    # Validates configuration loading
+│   ├── s3_utils.py       # S3 streaming and storage utilities
+│   ├── preprocess.py     # Preprocesses audio and image data
+│   ├── models.py         # Defines Early, Mid, and Late Fusion models
+│   ├── utils.py          # Memory management, metrics, and visualization tools
+│   ├── train.py          # Trains the fusion models
+│   ├── evaluate.py       # Evaluates model performance
+│   ├── test_videos.py    # Tests real-world video files
+├── requirements.txt      # Python dependencies
+└── README.md             # This research documentation
 ```
 
 ---
 
-## How We Keep the Computer Happy (Memory Management)
-We don’t want the EC2 computer to crash, so we make sure it never uses more than **80% of its memory** (leaving 20% free). Here’s how:
-- **Streaming**: We don’t save files—just process them in memory as they come from S3.
-- **Batching**: We work on small groups of data (like 8-16 images/audio at a time) instead of everything at once.
-- **Checking Memory**: We use a tool (`psutil`) to watch memory usage. If it gets too high, we stop or shrink the batch.
-- **Example**: If EC2 has 4GB of memory:
-  - 80% = 3.2GB max.
-  - We aim for ~2.9GB (70%) to stay safe.
-  - Batch size adjusts automatically to fit.
+## Setup and Deployment
+
+### Prerequisites
+- **AWS Account**: Required for EC2 and S3 access.
+- **EC2 Instance**: Minimum `t2.medium` (2 vCPUs, 4GB RAM); GPU instances (e.g., `g4dn.xlarge`) optional for faster training.
+- **S3 Bucket**: Stores datasets, models, and results.
+- **Python 3.8+**: Core runtime environment.
+
+### Installation Steps
+1. **Clone the Repository**:
+   ```
+   git clone https://github.com/Levi-Chinecherem/deepfake_detection.git
+   cd deepfake_detection/
+   ```
+
+2. **Configure EC2**:
+   - Launch an EC2 instance (Amazon Linux 2 recommended).
+   - Assign an IAM role with `AmazonS3FullAccess`.
+   - Connect via SSH:
+     ```
+     ssh -i your-key.pem ec2-user@your-ec2-ip
+     ```
+
+3. **Deploy Code to EC2**:
+   - Zip locally:
+     ```
+     zip -r deepfake_detection.zip deepfake_detection/
+     ```
+   - Upload to EC2:
+     ```
+     scp -i your-key.pem deepfake_detection.zip ec2-user@your-ec2-ip:/home/ec2-user/
+     ```
+   - Unzip on EC2:
+     ```
+     unzip deepfake_detection.zip
+     cd deepfake_detection/
+     ```
+
+4. **Install Dependencies**:
+   - Update EC2 and install Python:
+     ```
+     sudo yum update -y
+     sudo yum install python3 -y
+     ```
+   - Install `pip` and libraries:
+     ```
+     curl -O https://bootstrap.pypa.io/get-pip.py
+     python3 get-pip.py --user
+     pip3 install -r requirements.txt
+     ```
+   - Install FFmpeg for video processing:
+     ```
+     sudo yum install ffmpeg -y
+     ```
+
+### Configuration
+1. **Edit `config.yaml`**:
+   - Open:
+     ```
+     nano config/config.yaml
+     ```
+   - Update `s3.bucket` to your bucket (e.g., `s3://bale-dennis-phd-bucket`).
+   - Customize hyperparameters (e.g., `batch_size`, `epochs`) as needed.
+   - Save and exit (Ctrl+O, Enter, Ctrl+X).
+
+2. **Prepare S3**:
+   - Create your bucket:
+     ```
+     aws s3 mb s3://bale-dennis-phd-bucket
+     ```
+   - Set up directories:
+     ```
+     aws s3 mkdir s3://bale-dennis-phd-bucket/dataset/
+     aws s3 mkdir s3://bale-dennis-phd-bucket/test_data/
+     aws s3 mkdir s3://bale-dennis-phd-bucket/outputs/
+     ```
 
 ---
 
-## Pictures We Make (Visualizations)
-We’ll create lots of pictures (charts) to show how the system is doing. All have labels, titles, and legends (like a key to explain colors). They’re saved to `s3://your-bucket/outputs/plots/`.
+## Usage Instructions
 
-### Before Training
-1. **Data Distribution**: How many real vs. fake files we have.
-2. **Audio Samples**: Pictures of sound (spectrograms) for real vs. fake.
-3. **Image Samples**: A grid of real vs. fake faces.
+### 1. Model Training
+- **Objective**: Train the fusion models on a labeled dataset.
+- **Command**:
+  ```
+  python3 src/train.py --config config/config.yaml
+  ```
+- **Input**: Upload images to `s3://bale-dennis-phd-bucket/dataset/frames/` and audio to `s3://bale-dennis-phd-bucket/dataset/audio/` (subdirs: `train/`, `test/`, `validate/` with `real/` and `fake/`).
+- **Output**: Models in `outputs/models/` (e.g., `mid_epoch_5_*.pth`), logs in `outputs/logs/`.
 
-### During Training
-4. **Loss Curves**: How much the system improves over time.
-5. **Accuracy Curves**: How often it’s right.
-6. **Emotion Consistency Heatmap**: Do emotions match between audio and images?
-7. **Confusion Matrix**: What it gets right or wrong (e.g., real called fake).
+### 2. Model Evaluation
+- **Objective**: Assess model performance on the test split.
+- **Command**:
+  ```
+  python3 src/evaluate.py --config config/config.yaml
+  ```
+- **Output**: Metrics (e.g., accuracy, F1) in `outputs/logs/`, visualization plots (e.g., ROC curves) in `outputs/plots/`.
 
-### After Training
-8. **ROC Curve**: How good it is at spotting fakes.
-9. **Precision-Recall Curve**: Balancing accuracy and coverage.
-10. **F1-Score Plot**: A score mixing precision and recall.
-11. **Sensitivity-Specificity Curve**: How it balances true vs. false guesses.
-12. **Prediction Distribution**: What the system guesses (real or fake scores).
-13. **Precision vs. Recall vs. Threshold**: How changing the cutoff affects results.
-14. **Feature Importance**: Which clues (face or voice) matter most.
-15. **Memory Usage Plot**: Did we stay under 80%?
-
-### Decision-Making Pictures
-16. **Learning Rate Sensitivity**: How fast should it learn?
-17. **Batch Size Impact**: Does bigger or smaller groups work better?
-18. **Dropout Rate Analysis**: Should we forget some clues to avoid mistakes?
-19. **Fusion Comparison**: Which mixing method (early, mid, late) is best?
-
----
-
-## Tools We Use
-- **Python**: The language we write in.
-- **PyTorch**: Helps build the brain (models).
-- **boto3**: Talks to S3.
-- **psutil**: Watches memory.
-- **librosa**: Turns audio into pictures.
-- **PIL**: Works with images.
-- **matplotlib**: Makes our charts.
-
-These are listed in `requirements.txt`—install them on EC2 with `pip install -r requirements.txt`.
+### 3. Real-World Video Testing
+- **Objective**: Detect deepfakes in unlabeled video files, a key demonstration for Bale Dennis’s PhD defense.
+- **Command**:
+  ```
+  python3 src/test_videos.py --config config/config.yaml
+  ```
+- **Input**: Upload videos (e.g., `.mp4`, `.avi`) to `s3://bale-dennis-phd-bucket/test_data/`.
+- **Output**: CSV results in `outputs/results/` (e.g., `test_results_20250302_123456.csv`), memory logs in `outputs/logs/`.
+- **CSV Format**:
+  ```csv
+  video_name,early_pred,mid_pred,late_pred,avg_pred,is_fake,mid_consistency,late_consistency,processing_time,ground_truth,system_a_pred,system_b_pred
+  video1.mp4,0.35,0.45,0.40,0.40,0,0.85,0.90,2.34,,,
+  ```
 
 ---
 
-## How to Run It
-1. **Set Up EC2**:
-   - Pick an EC2 instance (like `t2.medium` with 4GB RAM).
-   - Connect via terminal (SSH).
-
-2. **Upload Code**:
-   - Copy the `deepfake_detection/` folder to EC2 (e.g., with `scp`).
-
-3. **Install Tools**:
-   - Run `pip install -r requirements.txt` in the terminal.
-
-4. **Edit Config**:
-   - Open `config/config.yaml` and add your S3 bucket name (e.g., `s3://my-deepfake-bucket`).
-
-5. **Start Training**:
-   - Run `python src/train.py --config config.yaml`.
-   - It streams data, trains, and saves everything to S3.
-
-6. **Check Results**:
-   - Run `python src/evaluate.py` to see how it did.
-   - Look in `s3://your-bucket/outputs/` for models, plots, and logs.
+## Research Outputs
+- **Training Phase**: Model weights and training logs for methodological validation.
+- **Evaluation Phase**: Comprehensive metrics (e.g., AUC-ROC, F1-score) and visualizations for performance assessment.
+- **Testing Phase**: CSV files with prediction probabilities and emotional consistency scores, facilitating statistical analysis and comparison with existing methods.
 
 ---
 
-## Extra Details
-- **Emotions**: We check for emotions like happy, sad, or angry to spot mismatches.
-- **Saving Everything**: Every step—models, emotion checks, memory logs—goes to S3.
-- **Fusion**: Testing all three ways helps us find the best one.
-- **No Crashes**: Memory stays under 80%, so EC2 keeps running smoothly.
+## Customization for Research
+- **Hyperparameters**: Adjust `config.yaml`:
+  - `batch_size`: Lower to `8` for limited resources; increase to `32` for faster training.
+  - `epochs`: Set to `20` for deeper learning; `5` for quick experiments.
+  - `fusion_types`: Test specific models (e.g., `["mid", "late"]`).
+- **Data**: Use custom datasets in `dataset/` or videos in `test_data/` to replicate or extend Bale Dennis’s experiments.
 
 ---
 
-## What’s Next?
-This system is ready to learn from your data and spot deepfakes. You can:
-- Add more data to make it smarter.
-- Try it on bigger EC2 computers for faster training.
-- Use the plots to see what works best.
-
-If anything’s unclear, imagine you’re teaching a friend: every detail here is for you to understand and use this system like a pro!
+## Troubleshooting
+- **S3 Access Denied**: Confirm IAM role permissions and bucket name accuracy.
+- **Memory Exceeded**: Reduce `batch_size` or adjust `memory.max_usage_percent` in `config.yaml`.
+- **Model Not Found**: Ensure `train.py` completed; check `outputs/models/` for `.pth` files.
+- **Video Processing Failure**: Verify FFmpeg installation (`ffmpeg -version`) and video format compatibility.
 
 ---
 
-This `README.md` covers the full scope of your project in a way that’s detailed yet beginner-friendly. Let me know if you want to tweak anything or proceed with the code!
+## Academic Significance
+Developed under Bale Dennis’s PhD research, this system contributes to the field by:
+- Proposing emotional consistency as a novel deepfake detection criterion.
+- Demonstrating multimodal fusion’s efficacy in multimedia forensics.
+- Providing a reproducible, cloud-based framework for future studies.
+
+This repository serves as a cornerstone for Bale Dennis’s dissertation defense, offering a practical implementation of his theoretical advancements.
+
+---
+
+## Contributing
+Contributions are encouraged to enhance this research tool! Fork the repo, report issues, or submit pull requests with improvements such as:
+- Enhanced feature extraction techniques.
+- Additional fusion methodologies.
+- Integration with deepfake benchmark datasets.
+
+---
+
+## License
+Licensed under the [MIT License](LICENSE), this project is freely available for academic research and educational purposes.
+
+---
+
+## Credits
+- **Bale Dennis**: PhD candidate and principal investigator, whose research vision shaped this system.
+- **Levi Chinecherem**: Developer and technical architect ([GitHub: Levi-Chinecherem](https://github.com/Levi-Chinecherem)), responsible for implementation.
+
+For inquiries, contact Bale Dennis via his academic institution or Levi Chinecherem through GitHub Issues. Together let's send Best wishes to Bale Dennis for a successful PhD defense!

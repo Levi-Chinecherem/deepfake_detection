@@ -1,9 +1,13 @@
+# requirements.txt
 pyyaml
 boto3
 librosa
 Pillow
 torch
 torchvision
+numpy
 psutil
 matplotlib
 scikit-learn
+ffmpeg-python
+pandas

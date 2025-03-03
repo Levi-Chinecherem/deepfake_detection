@@ -1,6 +1,27 @@
 
 # Multimodal Deepfake Detection System - Video Testing Guide
 
+![Project Status](https://img.shields.io/badge/status-active-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/github/license/Levi-Chinecherem/deepfake_detection?color=orange)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Last Commit](https://img.shields.io/github/last-commit/Levi-Chinecherem/deepfake_detection)
+
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
+![Django](https://img.shields.io/badge/django-4.2.7-green?logo=django)
+![PyTorch](https://img.shields.io/badge/pytorch-2.6.0-orange?logo=pytorch)
+![Tailwind CSS](https://img.shields.io/badge/tailwindcss-3.4.1-blue?logo=tailwind-css)
+![AWS](https://img.shields.io/badge/AWS-S3%20%26%20EC2-yellow?logo=amazon-aws)
+
+![Contributors](https://img.shields.io/github/contributors/Levi-Chinecherem/deepfake_detection?color=green)
+![Issues](https://img.shields.io/github/issues/Levi-Chinecherem/deepfake_detection?color=red)
+![Pull Requests](https://img.shields.io/github/issues-pr/Levi-Chinecherem/deepfake_detection?color=purple)
+![Stars](https://img.shields.io/github/stars/Levi-Chinecherem/deepfake_detection?style=social)
+![Forks](https://img.shields.io/github/forks/Levi-Chinecherem/deepfake_detection?style=social)
+
+![Code Size](https://img.shields.io/github/repo-size/Levi-Chinecherem/deepfake_detection)
+![Research](https://img.shields.io/badge/Purpose-PhD%20Research-blue)
+
 This guide explains how to test the Multimodal Deepfake Detection System on real-world video files. The system uses trained models to analyze videos, checking emotional consistency between audio and visuals to detect deepfakes. You’ll upload videos to Amazon S3, run a testing script on AWS EC2, and get results in a CSV file for analysis. Let’s get started!
 
 ---

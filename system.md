@@ -1,5 +1,26 @@
 # Multimodal Deepfake Detection System
 
+![Project Status](https://img.shields.io/badge/status-active-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/github/license/Levi-Chinecherem/deepfake_detection?color=orange)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Last Commit](https://img.shields.io/github/last-commit/Levi-Chinecherem/deepfake_detection)
+
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
+![Django](https://img.shields.io/badge/django-4.2.7-green?logo=django)
+![PyTorch](https://img.shields.io/badge/pytorch-2.6.0-orange?logo=pytorch)
+![Tailwind CSS](https://img.shields.io/badge/tailwindcss-3.4.1-blue?logo=tailwind-css)
+![AWS](https://img.shields.io/badge/AWS-S3%20%26%20EC2-yellow?logo=amazon-aws)
+
+![Contributors](https://img.shields.io/github/contributors/Levi-Chinecherem/deepfake_detection?color=green)
+![Issues](https://img.shields.io/github/issues/Levi-Chinecherem/deepfake_detection?color=red)
+![Pull Requests](https://img.shields.io/github/issues-pr/Levi-Chinecherem/deepfake_detection?color=purple)
+![Stars](https://img.shields.io/github/stars/Levi-Chinecherem/deepfake_detection?style=social)
+![Forks](https://img.shields.io/github/forks/Levi-Chinecherem/deepfake_detection?style=social)
+
+![Code Size](https://img.shields.io/github/repo-size/Levi-Chinecherem/deepfake_detection)
+![Research](https://img.shields.io/badge/Purpose-PhD%20Research-blue)
+
 Welcome to the Multimodal Deepfake Detection System! This project builds a machine learning system to detect deepfakes—videos or media that have been manipulated to look or sound real but aren’t. Our system uses two types of data: **images** (like snapshots of faces) and **audio** (like voice recordings) to figure out if something is real or fake. It does this by checking if the emotions in the face (like a smile) match the emotions in the voice (like a happy tone). If they don’t match, it’s more likely a fake!
 
 We’re building this from scratch, training it on data stored in **Amazon S3** (a cloud storage service), and running it on **AWS EC2** (a cloud computer). Everything—data, results, and pictures—stays in the cloud, and we’ll make sure it doesn’t use too much memory so the computer doesn’t crash. Let’s break it down step-by-step so you can understand exactly what’s happening.

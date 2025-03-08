@@ -10,6 +10,7 @@ matplotlib
 scikit-learn
 ffmpeg-python
 pandas
-django
 gunicorn
-
+requests
+fastapi 
+uvicorn

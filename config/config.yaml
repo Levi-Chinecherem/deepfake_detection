@@ -1,28 +1,23 @@
 # config/config.yaml
 
-# S3 Settings
+# S3 Settings (for outputs/models)
 s3:
-  bucket: "s3://bale"
-  dataset_path: "dataset/"
-  test_data_path: "test_data/"
-  outputs_path: "outputs/"
+  bucket: "bale"              # S3 bucket name
+  dataset_path: "dataset/"    # Base path for datasets on local server
+  outputs_path: "outputs/"    # Base path for outputs on S3
   subdirs:
-    frames: "frames/"
-    audio: "audio/"
-    models: "models/"
-    plots: "plots/"
-    logs: "logs/"
-    results: "results/"
-  users:
-    data: "users/data/"
-    logs: "users/logs/"
-    results: "users/results/"
+    frames: "frames/"         # Subdirectory for frames (local server)
+    audio: "audio/"           # Subdirectory for audio (local server)
+    models: "models/"         # Subdirectory for models (S3)
+    plots: "plots/"           # Subdirectory for plots (S3)
+    logs: "logs/"             # Subdirectory for logs (S3)
+    results: "results/"       # Subdirectory for results (S3)
 
 # Hyperparameters
 training:
   batch_size: 16              # Number of samples per batch (adjustable)
   learning_rate: 0.001        # How fast the model learns
-  epochs: 10                  # Number of training rounds
+  num_epochs: 10              # Number of training rounds
   fusion_types:               # Which fusion strategies to use
     - "early"
     - "mid"
@@ -32,10 +27,10 @@ training:
 # Model Settings
 models:
   audio:
-    input_size: [128, 128]    # Spectrogram size (height, width)
+    input_size: [1, 128, 128] # Spectrogram size (channels, height, width)
     output_dim: 128           # Feature vector size
   image:
-    input_size: [224, 224]    # Image size (height, width)
+    input_size: [3, 224, 224] # Image size (channels, height, width)
     output_dim: 128           # Feature vector size
   emotions:
     num_classes: 7            # Emotions: happy, sad, angry, etc.

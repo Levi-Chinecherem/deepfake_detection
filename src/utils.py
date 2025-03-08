@@ -8,7 +8,9 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_s
 import io
 import yaml
 from datetime import datetime
-from s3_utils import upload_to_s3
+import os
+
+BASE_DIR = "/home/smd/Developments/AI-ML/deepfake_detection"
 
 def monitor_memory(config, model_size_mb=100):
     mem = psutil.virtual_memory()
@@ -16,16 +18,11 @@ def monitor_memory(config, model_size_mb=100):
     used_mb = mem.used / (1024 * 1024)
     percent = mem.percent
     
-    log = (f"Total Memory: {total_mb:.2f} MB\n"
-           f"Used Memory: {used_mb:.2f} MB\n"
-           f"Percent Used: {percent:.2f}%\n"
-           f"Model Size Estimate: {model_size_mb} MB")
+    # Log to console only, no file saving
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]} - Total Memory: {total_mb:.2f} MB, "
+          f"Used Memory: {used_mb:.2f} MB, Percent Used: {percent:.2f}%, "
+          f"Model Size Estimate: {model_size_mb} MB")
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_to_s3_log(log, f"memory_usage_{timestamp}.txt", config)
-    
-    if percent > config['memory']['max_usage_percent']:
-        raise Exception(f"Memory usage ({percent}%) exceeds max limit ({config['memory']['max_usage_percent']}%)")
     return percent
 
 def adjust_batch_size(config, sample_audio_mb=10, sample_image_mb=50):
@@ -38,9 +35,10 @@ def adjust_batch_size(config, sample_audio_mb=10, sample_image_mb=50):
     batch_size = max(1, int(available_mb / sample_mb))
     batch_size = min(batch_size, config['training']['batch_size'])
     
-    log = f"Adjusted batch size: {batch_size} (Available: {available_mb:.2f} MB, Sample: {sample_mb} MB)"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_to_s3_log(log, f"batch_size_adjust_{timestamp}.txt", config)
+    # Log to console only, no file saving
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]} - Adjusted batch size: {batch_size} "
+          f"(Available: {available_mb:.2f} MB, Sample: {sample_mb} MB)")
+    
     return batch_size
 
 def calculate_metrics(y_true, y_pred, y_scores, config):
@@ -73,7 +71,7 @@ def calculate_metrics(y_true, y_pred, y_scores, config):
     
     log = "\n".join(f"{k}: {v:.4f}" for k, v in metrics.items())
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_to_s3_log(log, f"metrics_{timestamp}.txt", config)
+    save_to_local_log(log, f"metrics_{timestamp}.txt", config)
     return metrics, fpr, tpr, precision_curve, recall_curve
 
 def plot_and_save(plot_type, data, config, title, xlabel, ylabel, filename):
@@ -99,20 +97,22 @@ def plot_and_save(plot_type, data, config, title, xlabel, ylabel, filename):
         plt.legend()
     plt.grid(True)
     
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=300)
-    buf.seek(0)
-    s3_path = f"s3://{config['s3']['bucket']}/{config['s3']['outputs_path']}{config['s3']['subdirs']['plots']}{filename}.png"
-    upload_to_s3(buf.getvalue(), s3_path, is_bytes=True)
+    plot_path = os.path.join(BASE_DIR, f"{config['local']['outputs_path']}{config['local']['subdirs']['plots']}{filename}.png")
+    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
+    plt.savefig(plot_path, format='png', dpi=300)
     plt.close()
+    print(f"Saved plot to {plot_path}")
 
-def save_to_s3_log(content, filename, config):
-    s3_path = f"s3://{config['s3']['bucket']}/{config['s3']['outputs_path']}{config['s3']['subdirs']['logs']}{filename}"
-    upload_to_s3(content.encode('utf-8'), s3_path, is_bytes=True)
-    print(f"Saved log to {s3_path}")
+def save_to_local_log(content, filename, config):
+    log_path = os.path.join(BASE_DIR, f"{config['local']['outputs_path']}{config['local']['subdirs']['logs']}{filename}")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, 'w') as f:
+        f.write(content)
+    print(f"Saved log to {log_path}")
 
 if __name__ == "__main__":
-    with open("../config/config.yaml", 'r') as f:
+    config_path = os.path.join(BASE_DIR, "config/config.yaml")
+    with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
     percent = monitor_memory(config)

@@ -6,9 +6,11 @@ from torch.utils.data import DataLoader
 from datetime import datetime
 from preprocess import DeepfakeDataset
 from models import EarlyFusionModel, MidFusionModel, LateFusionModel, emotional_consistency
-from utils import monitor_memory, adjust_batch_size, calculate_metrics, plot_and_save, save_to_s3_log
+from utils import monitor_memory, adjust_batch_size, calculate_metrics, plot_and_save, save_to_local_log
 from sklearn.metrics import confusion_matrix
-from s3_utils import stream_from_s3, list_s3_files
+import os
+
+BASE_DIR = "/home/smd/Developments/AI-ML/deepfake_detection"
 
 def evaluate_model(model, dataloader, config, fusion_type, device):
     model.eval()
@@ -39,9 +41,15 @@ def evaluate_model(model, dataloader, config, fusion_type, device):
     
     return y_true, y_pred, y_scores, consistency_scores
 
+def list_local_files(directory):
+    full_dir = os.path.join(BASE_DIR, directory)
+    if not os.path.exists(full_dir):
+        return []
+    return [os.path.join(directory, f) for f in os.listdir(full_dir) if f.endswith('.pth')]
+
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate deepfake detection models.")
-    parser.add_argument("--config", type=str, default="../config/config.yaml",
+    parser = argparse.ArgumentParser(description="Evaluate deepfake detection models locally.")
+    parser.add_argument("--config", type=str, default=os.path.join(BASE_DIR, "config/config.yaml"),
                         help="Path to config YAML file")
     args = parser.parse_args()
     
@@ -74,15 +82,16 @@ def main():
     }
     
     for fusion_type in config['training']['fusion_types']:
-        model_path = sorted(list_s3_files(f"s3://{config['s3']['bucket']}/{config['s3']['outputs_path']}{config['s3']['subdirs']['models']}"), reverse=True)
+        model_dir = f"{config['local']['outputs_path']}{config['local']['subdirs']['models']}"
+        model_path = sorted(list_local_files(model_dir), reverse=True)
         latest_model = next((p for p in model_path if fusion_type in p), None)
         if latest_model:
-            print(f"Loading {fusion_type} model from {latest_model}")
-            model_stream = stream_from_s3(latest_model)
-            state_dict = torch.load(model_stream, map_location=device)
+            full_model_path = os.path.join(BASE_DIR, latest_model)
+            print(f"Loading {fusion_type} model from {full_model_path}")
+            state_dict = torch.load(full_model_path, map_location=device)
             models_dict[fusion_type].load_state_dict(state_dict)
         else:
-            print(f"No trained {fusion_type} model found in S3")
+            print(f"No trained {fusion_type} model found locally")
             continue
         
         y_true, y_pred, y_scores, consistency_scores = evaluate_model(models_dict[fusion_type], test_loader,

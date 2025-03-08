@@ -7,84 +7,56 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-from s3_utils import stream_from_local_server, list_local_server_files
+import os
 
-def preprocess_audio(input_data, target_size=(1, 128, 128)):
-    """
-    Preprocess an audio file or stream into a spectrogram tensor.
-    
-    Args:
-        input_data (str or io.BytesIO): Local server path (str) or S3 stream (BytesIO).
-        target_size (tuple): Spectrogram size (channels, height, width).
-    
-    Returns:
-        torch.Tensor: Normalized spectrogram tensor.
-    """
+BASE_DIR = "/home/smd/Developments/AI-ML/deepfake_detection"
+
+def preprocess_audio(local_path, target_size=(1, 128, 128)):
     try:
-        if isinstance(input_data, str):
-            audio_stream = stream_from_local_server(input_data)
-        else:  # BytesIO from S3 (test_videos.py)
-            audio_stream = input_data
-        
-        y, sr = librosa.load(audio_stream, sr=16000)  # Resample to 16kHz
-        mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels_lexis = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=target_size[1])
+        full_path = os.path.join(BASE_DIR, local_path)
+        y, sr = librosa.load(full_path, sr=16000)
+        mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=target_size[1])
         log_mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
         
         if log_mel_spec.shape[1] != target_size[2]:
             log_mel_spec = librosa.util.fix_length(log_mel_spec, size=target_size[2], axis=1)
         
         log_mel_spec = (log_mel_spec - log_mel_spec.min()) / (log_mel_spec.max() - log_mel_spec.min())
-        tensor = torch.tensor(log_mel_spec, dtype=torch.float32).unsqueeze(0)  # [1, H, W]
+        tensor = torch.tensor(log_mel_spec, dtype=torch.float32).unsqueeze(0)
         return tensor
     except Exception as e:
-        raise Exception(f"Failed to preprocess audio: {e}")
+        raise Exception(f"Failed to preprocess audio {local_path}: {e}")
 
-def preprocess_image(input_data, target_size=(3, 224, 224)):
-    """
-    Preprocess an image file or stream into a normalized tensor.
-    
-    Args:
-        input_data (str or io.BytesIO): Local server path (str) or S3 stream (BytesIO).
-        target_size (tuple): Image size (channels, height, width).
-    
-    Returns:
-        torch.Tensor: Normalized image tensor.
-    """
+def preprocess_image(local_path, target_size=(3, 224, 224)):
     try:
-        if isinstance(input_data, str):
-            image_stream = stream_from_local_server(input_data)
-        else:  # BytesIO from S3 (test_videos.py)
-            image_stream = input_data
-        
-        image = Image.open(image_stream).convert('RGB')
+        full_path = os.path.join(BASE_DIR, local_path)
+        image = Image.open(full_path).convert('RGB')
         transform = transforms.Compose([
-            transforms.Resize((target_size[1], target_size[2])),  # [H, W]
-            transforms.ToTensor(),  # [0, 1], CHW format
+            transforms.Resize((target_size[1], target_size[2])),
+            transforms.ToTensor(),
         ])
-        tensor = transform(image)  # [3, H, W]
+        tensor = transform(image)
         return tensor
     except Exception as e:
-        raise Exception(f"Failed to preprocess image: {e}")
+        raise Exception(f"Failed to preprocess image {local_path}: {e}")
 
 class DeepfakeDataset(Dataset):
-    """
-    PyTorch Dataset for loading audio and image pairs from the local server.
-    
-    Args:
-        config (dict): Configuration from config.yaml.
-        split (str): 'train', 'test', or 'validate'.
-    """
     def __init__(self, config, split):
         self.config = config
         self.split = split
         
-        self.audio_base = f"{config['s3']['dataset_path']}{config['s3']['subdirs']['audio']}{split}/"
-        self.image_base = f"{config['s3']['dataset_path']}{config['s3']['subdirs']['frames']}{split}/"
+        self.audio_base = f"{config['local']['dataset_path']}{config['local']['subdirs']['audio']}{split}/"
+        self.image_base = f"{config['local']['dataset_path']}{config['local']['subdirs']['frames']}{split}/"
         
-        self.audio_real = list_local_server_files(f"{self.audio_base}real/")
-        self.audio_fake = list_local_server_files(f"{self.audio_base}fake/")
-        self.image_real = list_local_server_files(f"{self.image_base}real/")
-        self.image_fake = list_local_server_files(f"{self.image_base}fake/")
+        audio_real_dir = os.path.join(BASE_DIR, f"{self.audio_base}real/")
+        audio_fake_dir = os.path.join(BASE_DIR, f"{self.audio_base}fake/")
+        image_real_dir = os.path.join(BASE_DIR, f"{self.image_base}real/")
+        image_fake_dir = os.path.join(BASE_DIR, f"{self.image_base}fake/")
+        
+        self.audio_real = [f"{self.audio_base}real/{f}" for f in os.listdir(audio_real_dir) if f.endswith('.wav')]
+        self.audio_fake = [f"{self.audio_base}fake/{f}" for f in os.listdir(audio_fake_dir) if f.endswith('.wav')]
+        self.image_real = [f"{self.image_base}real/{f}" for f in os.listdir(image_real_dir) if f.endswith(('.jpg', '.png'))]
+        self.image_fake = [f"{self.image_base}fake/{f}" for f in os.listdir(image_fake_dir) if f.endswith(('.jpg', '.png'))]
         
         self.audio_files = self.audio_real + self.audio_fake
         self.image_files = self.image_real + self.image_fake
@@ -108,7 +80,8 @@ class DeepfakeDataset(Dataset):
         return audio_tensor, image_tensor, label
 
 if __name__ == "__main__":
-    with open("../config/config.yaml", 'r') as f:
+    config_path = os.path.join(BASE_DIR, "config/config.yaml")
+    with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
     dataset = DeepfakeDataset(config, split="train")

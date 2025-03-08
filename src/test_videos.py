@@ -9,33 +9,35 @@ import io
 import pandas as pd
 from PIL import Image
 import librosa
-from torch.utils.data import DataLoader
 from models import EarlyFusionModel, MidFusionModel, LateFusionModel, emotional_consistency
 from preprocess import preprocess_audio, preprocess_image
-from utils import monitor_memory, save_to_s3_log
-from s3_utils import stream_from_s3, list_s3_files, upload_to_s3
+from utils import monitor_memory, save_to_local_log
+import os
 
-def extract_audio_and_frame(video_stream):
+BASE_DIR = "/home/smd/Developments/AI-ML/deepfake_detection"
+
+def extract_audio_and_frame(video_path):
     try:
-        probe = ffmpeg.probe(video_stream, cmd='ffprobe')
+        full_path = os.path.join(BASE_DIR, video_path)
+        probe = ffmpeg.probe(full_path, cmd='ffprobe')
         duration = float(probe['format']['duration'])
         middle_time = duration / 2
         
         audio_stream = io.BytesIO()
         (
             ffmpeg
-            .input('pipe:', format='mp4')
+            .input(full_path, format='mp4')
             .output(audio_stream, format='wav', acodec='pcm_s16le', ar=16000)
-            .run(input=video_stream.getvalue(), quiet=True)
+            .run(quiet=True)
         )
         audio_stream.seek(0)
         
         frame_stream = io.BytesIO()
         (
             ffmpeg
-            .input('pipe:', format='mp4')
+            .input(full_path, format='mp4')
             .output(frame_stream, format='image2', vframes=1, ss=middle_time)
-            .run(input=video_stream.getvalue(), quiet=True)
+            .run(quiet=True)
         )
         frame_stream.seek(0)
         
@@ -43,13 +45,11 @@ def extract_audio_and_frame(video_stream):
     except ffmpeg.Error as e:
         raise Exception(f"FFmpeg error: {e.stderr.decode()}")
 
-def process_video(s3_path, models, config, device):
+def process_video(video_path, models, config, device):
     start_time = time.time()
     
-    video_stream = stream_from_s3(s3_path)
-    video_name = s3_path.split('/')[-1]
-    
-    audio_stream, frame_stream = extract_audio_and_frame(video_stream)
+    video_name = video_path.split('/')[-1]
+    audio_stream, frame_stream = extract_audio_and_frame(video_path)
     
     audio_tensor = preprocess_audio(audio_stream, tuple(config['models']['audio']['input_size']))
     image_tensor = preprocess_image(frame_stream, tuple(config['models']['image']['input_size']))
@@ -86,9 +86,15 @@ def process_video(s3_path, models, config, device):
     
     return results
 
+def list_local_files(directory):
+    full_dir = os.path.join(BASE_DIR, directory)
+    if not os.path.exists(full_dir):
+        return []
+    return [os.path.join(directory, f) for f in os.listdir(full_dir) if f.endswith(('.pth', '.mp4'))]
+
 def main():
-    parser = argparse.ArgumentParser(description="Test deepfake detection on video files.")
-    parser.add_argument("--config", type=str, default="../config/config.yaml",
+    parser = argparse.ArgumentParser(description="Test deepfake detection on local video files.")
+    parser.add_argument("--config", type=str, default=os.path.join(BASE_DIR, "config/config.yaml"),
                         help="Path to config YAML file")
     args = parser.parse_args()
     
@@ -117,19 +123,20 @@ def main():
     }
     
     for fusion_type in config['training']['fusion_types']:
-        model_path = sorted(list_s3_files(f"s3://{config['s3']['bucket']}/{config['s3']['outputs_path']}{config['s3']['subdirs']['models']}"), reverse=True)
+        model_dir = f"{config['local']['outputs_path']}{config['local']['subdirs']['models']}"
+        model_path = sorted(list_local_files(model_dir), reverse=True)
         latest_model = next((p for p in model_path if fusion_type in p), None)
         if latest_model:
-            print(f"Loading {fusion_type} model from {latest_model}")
-            model_stream = stream_from_s3(latest_model)
-            state_dict = torch.load(model_stream, map_location=device)
+            full_model_path = os.path.join(BASE_DIR, latest_model)
+            print(f"Loading {fusion_type} model from {full_model_path}")
+            state_dict = torch.load(full_model_path, map_location=device)
             models_dict[fusion_type].load_state_dict(state_dict)
         else:
-            print(f"No trained {fusion_type} model found in S3")
+            print(f"No trained {fusion_type} model found locally")
             return
     
-    test_data_path = f"s3://{config['s3']['bucket']}/test_data/"
-    video_files = list_s3_files(test_data_path)
+    test_data_path = config['local']['test_data_path']
+    video_files = [f for f in list_local_files(test_data_path) if f.endswith('.mp4')]
     if not video_files:
         print(f"No video files found in {test_data_path}")
         return
@@ -143,11 +150,10 @@ def main():
     df = pd.DataFrame(results, columns=['video_name', 'early_pred', 'mid_pred', 'late_pred', 'avg_pred',
                                         'is_fake', 'mid_consistency', 'late_consistency', 'processing_time'])
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-    s3_path = f"s3://{config['s3']['bucket']}/{config['s3']['outputs_path']}{config['s3']['subdirs']['results']}test_results_{timestamp}.csv"
-    upload_to_s3(csv_buffer.getvalue().encode('utf-8'), s3_path, is_bytes=True)
-    print(f"Saved results to {s3_path}")
+    csv_path = os.path.join(BASE_DIR, f"{config['local']['outputs_path']}{config['local']['subdirs']['results']}test_results_{timestamp}.csv")
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    df.to_csv(csv_path, index=False)
+    print(f"Saved results to {csv_path}")
 
 if __name__ == "__main__":
     main()

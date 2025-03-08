@@ -1,17 +1,17 @@
 # config/config.yaml
 
-# S3 Settings (for outputs/models)
-s3:
-  bucket: "bale"              # S3 bucket name
-  dataset_path: "dataset/"    # Base path for datasets on local server
-  outputs_path: "outputs/"    # Base path for outputs on S3
+# Local Filesystem Settings
+local:
+  dataset_path: "dataset/"    # Base path for datasets
+  outputs_path: "outputs/"    # Base path for outputs
+  test_data_path: "test_data/" # Base path for test videos
   subdirs:
-    frames: "frames/"         # Subdirectory for frames (local server)
-    audio: "audio/"           # Subdirectory for audio (local server)
-    models: "models/"         # Subdirectory for models (S3)
-    plots: "plots/"           # Subdirectory for plots (S3)
-    logs: "logs/"             # Subdirectory for logs (S3)
-    results: "results/"       # Subdirectory for results (S3)
+    frames: "frames/"         # Subdirectory for frames
+    audio: "audio/"           # Subdirectory for audio
+    models: "models/"         # Subdirectory for models
+    plots: "plots/"           # Subdirectory for plots
+    logs: "logs/"             # Subdirectory for logs
+    results: "results/"       # Subdirectory for results
 
 # Hyperparameters
 training:

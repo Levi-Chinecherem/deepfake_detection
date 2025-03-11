@@ -1,40 +1,21 @@
 <!DOCTYPE html>
 <html lang="en" class="dark:bg-gray-900 transition-colors duration-300">
+{% load static %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deepfake Detection Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Corrected Heroicons import using CDN for icons -->
-    <script src="https://cdn.jsdelivr.net/npm/@heroicons/react@2.0.13/outline/esm/index.js"></script>
     <style>
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .fade-in { animation: fadeIn 1s ease-in; }
         @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
-        /* Ensure full height layout */
-        html, body {
-            height: 100%;
-            margin: 0;
-        }
-        .flex-container {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        main {
-            flex: 1 0 auto;
-        }
-        footer {
-            flex-shrink: 0;
-        }
-        /* Custom theme colors */
-        :root {
-            --gold-primary: #DAA520;
-            --gold-hover: #B8860B;
-            --dark-text: #333333;
-            --dark-milky: #E0E0E0;
-        }
+        html, body { height: 100%; margin: 0; }
+        .flex-container { display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex: 1 0 auto; }
+        footer { flex-shrink: 0; }
+        :root { --gold-primary: #DAA520; --gold-hover: #B8860B; --dark-text: #333333; --dark-milky: #E0E0E0; }
     </style>
     <script>
         tailwind.config = {
@@ -42,15 +23,8 @@
             theme: {
                 extend: {
                     colors: {
-                        gold: {
-                            light: '#F0D97A',
-                            DEFAULT: '#DAA520',
-                            dark: '#B8860B',
-                        },
-                        milky: {
-                            DEFAULT: '#E0E0E0',
-                            dark: '#D0D0D0',
-                        },
+                        gold: { light: '#F0D97A', DEFAULT: '#DAA520', dark: '#B8860B' },
+                        milky: { DEFAULT: '#E0E0E0', dark: '#D0D0D0' },
                         darkText: '#333333'
                     },
                     boxShadow: {
@@ -73,13 +47,11 @@
                 DDCS Dashboard
             </h1>
             <button id="theme-toggle" class="p-2 rounded-full hover:bg-gold-dark dark:hover:bg-indigo-700 transition">
-                <!-- Sun icon (visible in dark mode) -->
                 <svg id="sun-icon" class="h-6 w-6 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
-                <!-- Moon icon (visible in light mode) -->
                 <svg id="moon-icon" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3. технологий646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
             </button>
         </div>
@@ -91,6 +63,7 @@
             <h2 class="text-3xl font-semibold mb-4 text-darkText dark:text-gray-100">Upload a Video to Detect Deepfakes</h2>
             <p class="text-lg text-darkText dark:text-gray-300">Bale Dennis's PhD Research Project 🌟</p>
             <form id="upload-form" enctype="multipart/form-data" class="mt-4">
+                {% csrf_token %}
                 <input type="file" name="video" accept="video/*" class="p-2 border border-gold-DEFAULT rounded dark:bg-gray-700 text-darkText dark:text-gray-200">
                 <button type="submit" class="bg-gold-DEFAULT dark:bg-indigo-600 text-darkText dark:text-white p-2 rounded hover:bg-gold-dark dark:hover:bg-indigo-700 transition shadow-gold dark:shadow-md">Upload 🎥</button>
             </form>
@@ -143,17 +116,24 @@
             moonIcon.classList.remove('hidden');
         }
 
-        // Upload Video
+        // Upload Video with CSRF
         uploadForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const formData = new FormData(uploadForm);
-            uploadStatus.innerHTML = '<img src="/static/loading.gif" class="w-8 mx-auto animate-spin" alt="Loading">';
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            uploadStatus.innerHTML = '<img src="{% static "loading.gif" %}" class="w-8 mx-auto animate-spin" alt="Loading">';
             
             fetch('/upload/', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'processed' || data.status === 'exists') {
                     fetchResults(data.video_name);
@@ -163,13 +143,20 @@
                 } else {
                     uploadStatus.innerHTML = `<p class="text-red-500">Invalid request 🚫</p>`;
                 }
+            })
+            .catch(error => {
+                uploadStatus.innerHTML = `<p class="text-red-500">Fetch error: ${error.message} 🚨</p>`;
+                console.error('Fetch error:', error);
             });
         });
 
         // Fetch and Display Results
         function fetchResults(videoName) {
             fetch(`/results/${videoName}/`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         resultsSection.innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
@@ -183,13 +170,15 @@
                             <p class="text-2xl ${result.is_fake ? 'text-red-500' : 'text-green-500'}">
                                 ${result.is_fake ? 'Fake 🚨' : 'Real ✅'}
                             </p>
-                            <p class="text-darkText dark:text-gray-300">Early: ${result.early_pred.toFixed(2)} | Mid: ${result.mid_pred.toFixed(2)} | Late: ${result.late_pred.toFixed(2)}</p>
-                            <p class="text-darkText dark:text-gray-300">Avg Prediction: ${result.avg_pred.toFixed(2)}</p>
-                            ${result.mid_consistency ? `<p class="text-darkText dark:text-gray-300">Mid Consistency: ${result.mid_consistency.toFixed(2)}</p>` : ''}
-                            ${result.late_consistency ? `<p class="text-darkText dark:text-gray-300">Late Consistency: ${result.late_consistency.toFixed(2)}</p>` : ''}
+                            <p class="text-darkText dark:text-gray-300">Prediction: ${result.pred.toFixed(2)}</p>
+                            <p class="text-darkText dark:text-gray-300">Consistency: ${result.consistency.toFixed(2)}</p>
                         </div>
                     `;
                     logContent.textContent = data.log;
+                })
+                .catch(error => {
+                    resultsSection.innerHTML = `<p class="text-red-500">Fetch error: ${error.message}</p>`;
+                    console.error('Fetch error:', error);
                 });
         }
     </script>

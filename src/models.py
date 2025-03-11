@@ -142,7 +142,7 @@ class LateFusionModel(nn.Module):
 
     def forward(self, audio, image):
         audio_features, audio_emotions = self.audio_model(audio)
-        image_features, image_emotions = model.image_model(image)
+        image_features, image_emotions = self.image_model(image)
         audio_pred = self.audio_fc(audio_features)
         image_pred = self.image_fc(image_features)
         pred = (audio_pred + image_pred) / 2

@@ -1,167 +1,65 @@
 # web_interface/detection_app/ml_models.py
 import torch
 import torch.nn as nn
+import torchaudio
 import torchvision.models as models
-import os
-import yaml
-from datetime import datetime
-from .s3_utils import upload_to_s3  # Updated import
+from torchvision.models import ResNet18_Weights
 
-class AudioModel(nn.Module):
-    def __init__(self, input_size=(1, 128, 128), feature_dim=128, num_emotions=7):
-        super(AudioModel, self).__init__()
-        self.cnn = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+class UnifiedModel(nn.Module):
+    def __init__(self, audio_input_size=(1, 16000), image_input_size=(3, 224, 224), num_emotions=7):
+        super(UnifiedModel, self).__init__()
+        # Audio backbone (Wav2Vec2) - Match train.py
+        bundle = torchaudio.pipelines.WAV2VEC2_BASE
+        self.audio_backbone = bundle.get_model()
+        self.audio_fc = nn.Linear(768, 256)  # Match train.py
+        
+        # Image backbone (ResNet18) - Match train.py
+        self.image_backbone = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+        self.image_backbone.fc = nn.Linear(self.image_backbone.fc.in_features, 256)  # Replace final FC
+        
+        # Fusion layers - Match train.py
+        self.early_fusion = nn.Sequential(
+            nn.Linear(256 + 256, 128),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.Dropout(0.3)
         )
-        self.lstm = nn.LSTM(64 * 16, 128, batch_first=True)
-        self.emotion_fc = nn.Linear(128, num_emotions)
-        self.feature_fc = nn.Linear(128, feature_dim)
-
-    def forward(self, x):
-        batch_size = x.size(0)
-        x = self.cnn(x)
-        x = x.view(batch_size, 16, -1)
-        x, _ = self.lstm(x)
-        x = x[:, -1, :]
-        emotion_logits = self.emotion_fc(x)
-        features = self.feature_fc(x)
-        return features, emotion_logits
-
-class ImageModel(nn.Module):
-    def __init__(self, feature_dim=128, num_emotions=7):
-        super(ImageModel, self).__init__()
-        resnet = models.resnet18(pretrained=True)
-        self.backbone = nn.Sequential(*list(resnet.children())[:-1])
-        self.emotion_fc = nn.Linear(512, num_emotions)
-        self.feature_fc = nn.Linear(512, feature_dim)
-
-    def forward(self, x):
-        x = self.backbone(x)
-        x = x.view(x.size(0), -1)
-        emotion_logits = self.emotion_fc(x)
-        features = self.feature_fc(x)
-        return features, emotion_logits
-
-class EarlyFusionModel(nn.Module):
-    def __init__(self, audio_input_size=(1, 128, 128), image_input_size=(3, 224, 224), num_emotions=7):
-        super(EarlyFusionModel, self).__init__()
-        self.audio_cnn = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+        self.mid_fusion = nn.Sequential(
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.Dropout(0.3)
         )
-        self.image_cnn = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
-        )
-        self.joint_cnn = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Flatten()
-        )
-        self.fc = nn.Sequential(
-            nn.Linear(128 * 784, 256),  # Adjust based on CNN output
+        
+        # Emotion classification - Match train.py
+        self.audio_emotion = nn.Linear(256, num_emotions)
+        self.image_emotion = nn.Linear(256, num_emotions)
+        
+        # Late fusion - Match train.py
+        self.late_fusion = nn.Sequential(
+            nn.Linear(64 + num_emotions * 2, 32),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(256, num_emotions),
-            nn.Linear(256, 1),
+            nn.Linear(32, 1),
             nn.Sigmoid()
         )
 
     def forward(self, audio, image):
-        audio_x = self.audio_cnn(audio)
-        image_x = self.image_cnn(image)
-        audio_x = torch.nn.functional.interpolate(audio_x, size=(56, 56))
-        x = torch.cat((audio_x, image_x), dim=1)
-        x = self.joint_cnn(x)
-        x = self.fc[:-1](x)
-        emotion_logits = x
-        pred = self.fc[-2:](x)
-        return pred, emotion_logits
-
-class MidFusionModel(nn.Module):
-    def __init__(self, feature_dim=128, num_emotions=7):
-        super(MidFusionModel, self).__init__()
-        self.audio_model = AudioModel(feature_dim=feature_dim, num_emotions=num_emotions)
-        self.image_model = ImageModel(feature_dim=feature_dim, num_emotions=num_emotions)
-        self.fc = nn.Sequential(
-            nn.Linear(feature_dim * 2, 256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, num_emotions),
-            nn.Linear(256, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, audio, image):
-        audio_features, audio_emotions = self.audio_model(audio)
-        image_features, image_emotions = self.image_model(image)
-        x = torch.cat((audio_features, image_features), dim=1)
-        x = self.fc[:-1](x)
-        emotion_logits = x
-        pred = self.fc[-2:](x)
-        return pred, emotion_logits, audio_emotions, image_emotions
-
-class LateFusionModel(nn.Module):
-    def __init__(self, feature_dim=128, num_emotions=7):
-        super(LateFusionModel, self).__init__()
-        self.audio_model = AudioModel(feature_dim=feature_dim, num_emotions=num_emotions)
-        self.image_model = ImageModel(feature_dim=feature_dim, num_emotions=num_emotions)
-        self.audio_fc = nn.Sequential(
-            nn.Linear(feature_dim, 1),
-            nn.Sigmoid()
-        )
-        self.image_fc = nn.Sequential(
-            nn.Linear(feature_dim, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, audio, image):
-        audio_features, audio_emotions = self.audio_model(audio)
-        image_features, image_emotions = self.image_model(image)
-        audio_pred = self.audio_fc(audio_features)
-        image_pred = self.image_fc(image_features)
-        pred = (audio_pred + image_pred) / 2
-        return pred, audio_emotions, image_emotions
+        # Audio processing
+        audio_features = self.audio_backbone.extract_features(audio, num_layers=12)[0][-1].mean(dim=1)  # [batch, 768]
+        audio_embed = self.audio_fc(audio_features)  # [batch, 256]
+        audio_em = self.audio_emotion(audio_embed)   # [batch, num_emotions]
+        
+        # Image processing
+        image_embed = self.image_backbone(image)     # [batch, 256]
+        image_em = self.image_emotion(image_embed)   # [batch, num_emotions]
+        
+        # Fusion
+        early = torch.cat((audio_embed, image_embed), dim=1)  # [batch, 512]
+        early_out = self.early_fusion(early)                  # [batch, 128]
+        mid_out = self.mid_fusion(early_out)                  # [batch, 64]
+        late_in = torch.cat((mid_out, audio_em, image_em), dim=1)  # [batch, 64 + 2*num_emotions]
+        pred = self.late_fusion(late_in)                      # [batch, 1]
+        
+        return pred, audio_em, image_em
 
 def emotional_consistency(audio_emotions, image_emotions):
     return torch.nn.functional.cosine_similarity(audio_emotions, image_emotions, dim=1)
-
-def save_to_s3_log(content, filename, config):
-    s3_path = f"{config['s3']['bucket']}/{config['s3']['users']['logs']}{filename}"  # Updated to users/logs/
-    upload_to_s3(content.encode('utf-8'), s3_path, is_bytes=True)
-    print(f"Saved log to {s3_path}")
-
-if __name__ == "__main__":
-    # Define BASE_DIR and load config from web_interface/
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(BASE_DIR, 'config.yaml'), 'r') as f:  # Corrected path
-        config = yaml.safe_load(f)
-
-    # Generate unique timestamp for filenames
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    batch_size = 16
-    audio_input = torch.randn(batch_size, 1, 128, 128)
-    image_input = torch.randn(batch_size, 3, 224, 224)
-    
-    # Test models (simplified for web context)
-    early_model = EarlyFusionModel()
-    pred, emotions = early_model(audio_input, image_input)
-    print(f"Early pred: {pred.shape}")
-    save_to_s3_log(f"Early pred: {pred.shape}", f"early_test_{timestamp}.txt", config)
